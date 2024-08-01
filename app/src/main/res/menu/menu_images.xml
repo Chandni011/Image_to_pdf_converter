@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item android:id="@+id/images_item_delete"
+        android:icon="@drawable/ic_delete_white"
+        app:showAsAction="always"
+        android:title="Delete"/>
+
+    <item android:title="Convert to pdf"
+        android:id="@+id/images_item_pdf"
+        app:showAsAction="always"
+        android:icon="@drawable/ic_pdf_white"/>
+</menu>
