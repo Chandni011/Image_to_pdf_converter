@@ -25,6 +25,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.RecyclerView;
@@ -39,6 +40,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.Toast;
 
@@ -49,17 +51,16 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class ImageListFragment extends Fragment {
 
     private static final String TAG = "Image List Tag";
-    private static final int STORAGE_REQUEST_CODE = 100;
-    private static final int CAMERA_REQUEST_CODE = 101;
+    private static final int REQUEST_STORAGE_PERMISSION = 200;
+    private static final int REQUEST_CAMERA_PERMISSION = 100;
 
-    private String[] cameraPermissions;
-    private String[] storagePermissions;
     private Context mContext;
 
     private FloatingActionButton addImageFab;
@@ -68,6 +69,7 @@ public class ImageListFragment extends Fragment {
     private ArrayList<ModelImage> allImageArrayList;
     private AdapterImage adapterImage;
     private ProgressDialog progressDialog;
+    ImageView imageItemDelete, imageItemPdf;
 
     public ImageListFragment() {
         // Required empty public constructor
@@ -89,14 +91,14 @@ public class ImageListFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        cameraPermissions = new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE};
-        storagePermissions = new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE};
 
         addImageFab = view.findViewById(R.id.addImageFab);
         imagesRv = view.findViewById(R.id.imagesRv);
         progressDialog = new ProgressDialog(mContext);
         progressDialog.setTitle("Please wait");
         progressDialog.setCanceledOnTouchOutside(false);
+        imageItemDelete = view.findViewById(R.id.images_item_delete);
+        imageItemPdf = view.findViewById(R.id.images_item_pdf);
 
         loadImages();
         addImageFab.setOnClickListener(new View.OnClickListener() {
@@ -105,24 +107,8 @@ public class ImageListFragment extends Fragment {
                 showInputImageDialog();
             }
         });
-    }
 
-    @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setHasOptionsMenu(true);
-    }
-
-    @Override
-    public void onCreateOptionsMenu(@NonNull Menu menu, @NonNull MenuInflater inflater) {
-        inflater.inflate(R.menu.menu_images, menu);
-        super.onCreateOptionsMenu(menu, inflater);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        int itemId = item.getItemId();
-        if (itemId == R.id.images_item_delete) {
+        imageItemDelete.setOnClickListener(v -> {
             AlertDialog.Builder builder = new AlertDialog.Builder(mContext); // Use 'this' instead of 'mContext' if inside an Activity
             builder.setTitle("Delete Images")
                     .setMessage("Are you sure you want to delete All/Selected images?")
@@ -145,8 +131,9 @@ public class ImageListFragment extends Fragment {
                         }
                     })
                     .show();
-            return true; // Return true as the event is handled
-        } else if (itemId == R.id.images_item_pdf) {
+        });
+
+        imageItemPdf.setOnClickListener(v -> {
             AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
             builder.setTitle("Convert to pdf")
                     .setMessage("Convert all/selected images into pdf")
@@ -169,10 +156,16 @@ public class ImageListFragment extends Fragment {
                         }
                     })
                     .show();
-            
-        }
-        return super.onOptionsItemSelected(item);
+        });
     }
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true);
+    }
+
+
 
     private void convertImagesToPdf(boolean convertAll){
         Log.d(TAG, "convertImagesToPdf: convertAll: "+convertAll);
@@ -269,8 +262,7 @@ public class ImageListFragment extends Fragment {
     private void deleteImages(boolean deleteAll){
         ArrayList<ModelImage> imagesToDeleteList = new ArrayList<>();
         if (deleteAll){
-            imagesToDeleteList = allImageArrayList;
-            allImageArrayList.clear();
+            imagesToDeleteList.addAll(allImageArrayList);
         }
         else{
             for (ModelImage image: allImageArrayList){
@@ -284,16 +276,18 @@ public class ImageListFragment extends Fragment {
             try {
                 String pathOfImageToDelete = image.getImageUri().getPath();
                 File file = new File(pathOfImageToDelete);
-                if (file.exists()){
-                    boolean isDeleted = file.delete();
-                    Log.d(TAG, "deleteImages: isDeleted"+isDeleted);
+                if (file.exists() &&  file.delete()){
+                    Log.d(TAG, "deleteImages: Image deleted: " + pathOfImageToDelete);
                 }
-                allImageArrayList.remove(image);
-
+                else {
+                    Log.d(TAG, "deleteImages: Failed to delete image: " + pathOfImageToDelete);
+                }
             }catch (Exception e){
                 Log.e(TAG, "deleteImages: ",e);
             }
         }
+        allImageArrayList.removeAll(imagesToDeleteList);
+
         Toast.makeText(mContext, "Deleted", Toast.LENGTH_SHORT).show();
         adapterImage.notifyDataSetChanged();
         loadImages();
@@ -381,7 +375,7 @@ public class ImageListFragment extends Fragment {
                         pickImageCamera();
                     }
                     else {
-                        requestCameraPermissions();
+                        requestCameraPermissions.launch(new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE});
                     }
                 } else if (itemId == 2){
                     Log.d(TAG, "onMenuItemClick: Camera is clicked, check if camera permissions are granted or not.");
@@ -389,7 +383,7 @@ public class ImageListFragment extends Fragment {
                         pickImageGallery();
                     }
                     else {
-                        requestStoragePermission();
+                        requestStoragePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE);
                     }
                 }
                 return true;
@@ -400,6 +394,7 @@ public class ImageListFragment extends Fragment {
     private void pickImageGallery(){
         Intent intent = new Intent(Intent.ACTION_PICK);
         intent.setType("image/*");
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         galleryActivityResultLauncher.launch(intent);
     }
 
@@ -408,21 +403,62 @@ public class ImageListFragment extends Fragment {
             new ActivityResultCallback<ActivityResult>() {
                 @Override
                 public void onActivityResult(ActivityResult result) {
-                    if (result.getResultCode() == Activity.RESULT_OK){
+                    if (result.getResultCode() == Activity.RESULT_OK) {
                         Intent data = result.getData();
-                        imageUri = data.getData();
-                        Log.d(TAG, "onActivityResult: Picked Image Gallery" +imageUri);
-                        saveImageToAppLevelDirectory(imageUri);
-                        ModelImage modelImage = new ModelImage(imageUri, false);
-                        allImageArrayList.add(modelImage);
-                        adapterImage.notifyItemInserted(allImageArrayList.size());
-                    }
-                    else{
+                        if (data != null) {
+                            if (data.getClipData() != null) {
+                                // Multiple images were selected
+                                int count = data.getClipData().getItemCount();
+                                for (int i = 0; i < count; i++) {
+                                    Uri imageUri = data.getClipData().getItemAt(i).getUri();
+                                    Log.d(TAG, "onActivityResult: Picked Image Gallery " + imageUri);
+                                    saveImageToAppLevelDirectory(imageUri);
+                                    ModelImage modelImage = new ModelImage(imageUri, false);
+                                    allImageArrayList.add(modelImage);
+                                    adapterImage.notifyItemInserted(allImageArrayList.size());
+                                }
+                            } else if (data.getData() != null) {
+                                // Single image was selected
+                                Uri imageUri = data.getData();
+                                Log.d(TAG, "onActivityResult: Picked Image Gallery " + imageUri);
+                                saveImageToAppLevelDirectory(imageUri);
+                                ModelImage modelImage = new ModelImage(imageUri, false);
+                                allImageArrayList.add(modelImage);
+                                adapterImage.notifyItemInserted(allImageArrayList.size());
+                            }
+                        }
+                    } else {
                         Toast.makeText(mContext, "Cancelled....", Toast.LENGTH_SHORT).show();
+                    }
+                }
+                private void checkPermissions() {
+                    if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                        ActivityCompat.requestPermissions((Activity) mContext, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
                     }
                 }
             }
     );
+
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode) {
+            case REQUEST_CAMERA_PERMISSION:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // Permission granted, proceed with camera access
+                } else {
+                    // Permission denied, show a message to the user
+                }
+                break;
+            case REQUEST_STORAGE_PERMISSION:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // Permission granted, proceed with storage access
+                } else {
+                    // Permission denied, show a message to the user
+                }
+                break;
+        }
+    }
 
     private void pickImageCamera(){
         Log.d(TAG, "pickImageCamera: ");
@@ -457,8 +493,32 @@ public class ImageListFragment extends Fragment {
         return result;
     }
 
-    private void requestStoragePermission(){
-        requestPermissions(storagePermissions, STORAGE_REQUEST_CODE);
+    private ActivityResultLauncher<String> requestStoragePermission = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(), new ActivityResultCallback<Boolean>() {
+                @Override
+                public void onActivityResult(Boolean isGranted) {
+                    Log.d(TAG, "onActivityResult: isGranted"+isGranted);
+
+                    if (isGranted){
+                        pickImageGallery();
+                    }
+                    else {
+                        Toast.makeText(mContext, "Permission Denied", Toast.LENGTH_SHORT).show();
+                    }
+
+                }
+            }
+    );
+
+    private void requestPermissions() {
+        if (!checkCameraPermission()) {
+            requestCameraPermissions.launch(new String[] {
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+            });
+        } else {
+            pickImageCamera();
+        }
     }
 
     private boolean checkCameraPermission(){
@@ -468,56 +528,29 @@ public class ImageListFragment extends Fragment {
 
         return cameraResult && storageResult;
     }
+    
+    private ActivityResultLauncher<String[]> requestCameraPermissions = registerForActivityResult(
+            new ActivityResultContracts.RequestMultiplePermissions(),
+            new ActivityResultCallback<Map<String, Boolean>>() {
 
-    private void requestCameraPermissions(){
-        Log.d(TAG, "requestCameraPermissions: ");
-        requestPermissions(cameraPermissions, CAMERA_REQUEST_CODE);
-    }
+                @Override
+                public void onActivityResult(Map<String, Boolean> result) {
+                    Log.d(TAG, "onActivityResult: "+result.toString());
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        switch (requestCode){
-            case CAMERA_REQUEST_CODE:{
-                if (grantResults.length > 0){
-                    boolean cameraAccepted = grantResults[0] == PackageManager.PERMISSION_GRANTED;
-                    boolean storageAccepted = grantResults[1] == PackageManager.PERMISSION_GRANTED;
-
-                    if (cameraAccepted && storageAccepted){
+                    boolean areAllGranted = true;
+                    for (boolean isGranted: result.values()){
+                        Log.d(TAG, "onActivityResult: isGranted" +isGranted);
+                        areAllGranted = areAllGranted && isGranted;
+                    }
+                    if (areAllGranted){
+                        Log.d(TAG, "onActivityResult: All Granted e.g. Camera and Storage");
                         pickImageCamera();
-                        Log.d(TAG, "onRequestPermissionsResult: Both permissions (Camera and Gallery) are ganted, we can launch camera intent ");
                     }
-                    else{
-                        Log.d(TAG, "onRequestPermissionsResult: Camera & Storage Permissions are required");
-                        Toast.makeText(mContext, "Camera & Storage Permissions are required", Toast.LENGTH_SHORT).show();
+                    else {
+                        Log.d(TAG, "onActivityResult: Camera or Storage or Both Denied");
+                        Toast.makeText(mContext, "Camera or Storage or both permissions denied.", Toast.LENGTH_SHORT).show();
                     }
-                }
-                else{
-                    Log.d(TAG, "onRequestPermissionsResult: Cancelled....");
-                    Toast.makeText(mContext, "Cancelled....", Toast.LENGTH_SHORT).show();
                 }
             }
-            break;
-            case STORAGE_REQUEST_CODE:{
-                if (grantResults.length > 0){
-                    boolean storageAccepted = grantResults[0] == PackageManager.PERMISSION_GRANTED;
-
-                    if (storageAccepted){
-                        Log.d(TAG, "onRequestPermissionsResult: Storage permission granted, we can launch gallery intent");
-                        pickImageGallery();
-                    }
-                    else{
-                        Toast.makeText(mContext, "Storage Permission is required", Toast.LENGTH_SHORT).show();
-                        Log.d(TAG, "onRequestPermissionsResult: Storage permission, we can launch gallery intent.");
-                    }
-                }
-                else{
-                    Log.d(TAG, "onRequestPermissionsResult: Cancelled....");
-                    Toast.makeText(mContext, "Cancelled....", Toast.LENGTH_SHORT).show();
-                }
-            }
-            break;
-        }
-    }
+    );
 }

@@ -70,7 +70,7 @@ public class AdapterPdf extends RecyclerView.Adapter<AdapterPdf.HolderPdf>{
         holder.moreBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                rvListenersPdf.onPdfMoreClick(modelPdf,position);
+                rvListenersPdf.onPdfMoreClick(modelPdf,position,holder);
             }
         });
     }
@@ -150,17 +150,16 @@ public class AdapterPdf extends RecyclerView.Adapter<AdapterPdf.HolderPdf>{
         return pdfArrayList.size();
     }
 
-
-    public AdapterPdf(Context context, ArrayList<ModelPdf> pdfArrayList) {
-        this.context = context;
-        this.pdfArrayList = pdfArrayList;
+    @Override
+    public int getItemViewType(int position) {
+        return position;
     }
 
     public class HolderPdf extends RecyclerView.ViewHolder{
 
-        private ImageView thumbnailIv;
-        private TextView nameTv, pagesTv, sizeTv, dateTv;
-        private ImageButton moreBtn;
+        public ImageView thumbnailIv;
+        public TextView nameTv, pagesTv, sizeTv, dateTv;
+        public ImageButton moreBtn;
 
         public HolderPdf(@NonNull View itemView) {
             super(itemView);

@@ -21,9 +21,9 @@ import java.util.ArrayList;
 public class AdapterPdfView extends RecyclerView.Adapter<AdapterPdfView.HolderPdfView>{
 
     private Context context;
-    private ArrayList<ViewModelProvider> pdfViewArrayList;
+    private ArrayList<ModelPdfView> pdfViewArrayList;
 
-    public AdapterPdfView(Context context, ArrayList<ViewModelProvider> pdfViewArrayList) {
+    public AdapterPdfView(Context context, ArrayList<ModelPdfView> pdfViewArrayList) {
         this.context = context;
         this.pdfViewArrayList = pdfViewArrayList;
     }
@@ -39,13 +39,19 @@ public class AdapterPdfView extends RecyclerView.Adapter<AdapterPdfView.HolderPd
     @Override
     public void onBindViewHolder(@NonNull HolderPdfView holder, int position) {
 
-        //ModelPdfView modelPdfView = pdfViewArrayList.get(position);
-        //int pageNumber = position + 1;
-        //Bitmap bitmap = modelPdfView.getBitmap();
+        ModelPdfView modelPdfView = pdfViewArrayList.get(position);
+        int pageNumber = position + 1;
+        Bitmap bitmap = modelPdfView.getBitmap();
 
-        //Glide.with(context).load(bitmap).placeholder(R.drawable.ic_image_black).into(holder.imageIv);
+        if (bitmap != null) {
+            holder.imageIv.setImageBitmap(bitmap);
+        } else {
+            holder.imageIv.setImageResource(R.drawable.ic_image_black); // Fallback if bitmap is null
+        }
 
-        //holder.pageNumberTv.setText(""+pageNumber);
+        Glide.with(context).load(bitmap).placeholder(R.drawable.ic_image_black).into(holder.imageIv);
+
+        holder.pageNumberTv.setText("" + pageNumber);
     }
 
     @Override
@@ -62,7 +68,6 @@ public class AdapterPdfView extends RecyclerView.Adapter<AdapterPdfView.HolderPd
             super(itemView);
             pageNumberTv = itemView.findViewById(R.id.pageNumberTv);
             imageIv = itemView.findViewById(R.id.imageIv);
-
         }
     }
 }

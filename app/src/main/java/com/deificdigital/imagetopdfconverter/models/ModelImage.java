@@ -15,6 +15,18 @@ public class ModelImage {
         return imageUri;
     }
 
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ModelImage that = (ModelImage) o;
+        return imageUri.equals(that.imageUri);
+    }
+
+    @Override
+    public int hashCode() {
+        return imageUri.hashCode();
+    }
+
     public void setImageUri(Uri imageUri) {
         this.imageUri = imageUri;
     }
