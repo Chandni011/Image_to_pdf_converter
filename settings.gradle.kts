@@ -8,7 +8,6 @@ pluginManagement {
             }
         }
         mavenCentral()
-        gradlePluginPortal()
     }
 }
 dependencyResolutionManagement {
@@ -16,8 +15,17 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        jcenter()
-
+        maven {
+            url = uri("https://maven-central.storage.apis.com")
+        }
+        ivy {
+            url = uri("https://github.com/ivy-rep/")
+        }
+        mavenLocal()
+        flatDir {
+            dirs("libs")
+        }
+        gradlePluginPortal()
     }
 }
 

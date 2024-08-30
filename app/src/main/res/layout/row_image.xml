@@ -5,25 +5,28 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     app:cardElevation="1dp"
     app:cardUseCompatPadding="true">
-    
+
     <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-        
+        android:id="@+id/relativeLayout"
+        android:layout_width="200dp"
+        android:layout_height="200dp">
+
         <ImageView
             android:id="@+id/imageIv"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:src="@drawable/ic_image_black"
+            android:scaleType="fitXY"
             android:adjustViewBounds="true"/>
 
         <CheckBox
             android:id="@+id/checkBox"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:text=""/>
-        
+            android:layout_marginTop="150dp"
+            android:layout_marginLeft="120dp"
+            android:background="@drawable/checkbox_background"/>
+
     </RelativeLayout>
 
 </com.google.android.material.card.MaterialCardView>

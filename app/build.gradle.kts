@@ -37,11 +37,11 @@ dependencies {
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
+    implementation(libs.cardview)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
     implementation("com.github.bumptech.glide:glide:4.14.1")
     annotationProcessor("com.github.bumptech.glide:compiler:4.14.1")
-    implementation(kotlin("script-runtime"))
-    implementation ("com.github.barteksc:android-pdf-viewer:2.8.2")
+    implementation ("com.squareup.picasso:picasso:2.5.2")
 }

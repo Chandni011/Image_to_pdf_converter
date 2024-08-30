@@ -51,6 +51,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -70,6 +71,7 @@ public class ImageListFragment extends Fragment {
     private AdapterImage adapterImage;
     private ProgressDialog progressDialog;
     ImageView imageItemDelete, imageItemPdf;
+    private List<Uri> imageUris = new ArrayList<>();
 
     public ImageListFragment() {
         // Required empty public constructor
@@ -165,8 +167,6 @@ public class ImageListFragment extends Fragment {
         setHasOptionsMenu(true);
     }
 
-
-
     private void convertImagesToPdf(boolean convertAll){
         Log.d(TAG, "convertImagesToPdf: convertAll: "+convertAll);
 
@@ -176,122 +176,134 @@ public class ImageListFragment extends Fragment {
         ExecutorService executorService = Executors.newSingleThreadExecutor();
         Handler handler = new Handler(Looper.getMainLooper());
 
-        executorService.execute(new Runnable() {
-            @Override
-            public void run() {
-                Log.d(TAG, "run: BG work start....");
-                ArrayList<ModelImage> imagesToPdfList = new ArrayList<>();
-                if (convertAll){
-                    imagesToPdfList = allImageArrayList;
-                }
-                else {
-                    for (int i = 0; i < allImageArrayList.size(); i++){
-                        if (allImageArrayList.get(i).isChecked()){
-                            imagesToPdfList.add(allImageArrayList.get(i));
-                        }
-                    }
-                }
-                Log.d(TAG, "run: imagesToPdfList size"+ imagesToPdfList.size());
-
-                try {
-                    File root = new File(mContext.getExternalFilesDir(null), Constants.PDF_FOLDER);
-                    root.mkdirs();
-
-                    long timestamp = System.currentTimeMillis();
-                    String fileName = "PDF_"+timestamp+".pdf";
-
-                    Log.d(TAG, "run: fileName"+ fileName);
-
-                    File file = new File(root, fileName);
-
-                    FileOutputStream fileOutputStream =new FileOutputStream(file);
-                    PdfDocument pdfDocument = new PdfDocument();
-
-                    for (int i=0; i<imagesToPdfList.size(); i++){
-                        Uri imageToAdInPdfUri = imagesToPdfList.get(i).getImageUri();
-
-                        try {
-                            Bitmap bitmap;
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P){
-                                bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(mContext.getContentResolver(), imageToAdInPdfUri));
-                            }
-                            else
-                            {
-                                bitmap = MediaStore.Images.Media.getBitmap(mContext.getContentResolver(), imageToAdInPdfUri);
-                            }
-                            bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false);
-
-                            PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(bitmap.getWidth(), bitmap.getHeight(), i+1).create();
-                            PdfDocument.Page page = pdfDocument.startPage(pageInfo);
-
-
-                            Paint paint = new Paint();
-                            paint.setColor(Color.WHITE);
-                            Canvas canvas = page.getCanvas();
-                            canvas.drawPaint(paint);
-                            canvas.drawBitmap(bitmap,0f,0f,null);
-
-                            pdfDocument.finishPage(page);
-                            bitmap.recycle();
-                        }
-                        catch (Exception e){
-                            Log.e(TAG, "run: ",e);
-                        }
-                    }
-                    pdfDocument.writeTo(fileOutputStream);
-                    pdfDocument.close();
-                }
-                catch (Exception e){
-                    Toast.makeText(mContext, ""+e.getMessage(), Toast.LENGTH_SHORT).show();
-                    progressDialog.dismiss();
-                    Log.e(TAG, "run: ",e);
-                }
-
-                handler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        Log.d(TAG, "run: Converted....");
-                        progressDialog.dismiss();
-                        Toast.makeText(mContext, "Converted....", Toast.LENGTH_SHORT).show();
-                    }
-                });
+        executorService.execute(() -> {
+            Log.d(TAG, "run: BG work start....");
+            ArrayList<ModelImage> imagesToPdfList = new ArrayList<>();
+            if (convertAll){
+                imagesToPdfList = allImageArrayList;
             }
+            else {
+                for (int i = 0; i < allImageArrayList.size(); i++){
+                    if (allImageArrayList.get(i).isChecked()){
+                        imagesToPdfList.add(allImageArrayList.get(i));
+                    }
+                }
+            }
+            Log.d(TAG, "run: imagesToPdfList size"+ imagesToPdfList.size());
+
+            try {
+                File root = new File(mContext.getExternalFilesDir(null), Constants.PDF_FOLDER);
+                root.mkdirs();
+
+                long timestamp = System.currentTimeMillis();
+                String fileName = "PDF_"+timestamp+".pdf";
+
+                Log.d(TAG, "run: fileName"+ fileName);
+
+                File file = new File(root, fileName);
+
+                FileOutputStream fileOutputStream =new FileOutputStream(file);
+                PdfDocument pdfDocument = new PdfDocument();
+
+                for (int i=0; i<imagesToPdfList.size(); i++){
+                    Uri imageToAdInPdfUri = imagesToPdfList.get(i).getImageUri();
+
+                    try {
+                        Bitmap bitmap;
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P){
+                            bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(mContext.getContentResolver(), imageToAdInPdfUri));
+                        }
+                        else
+                        {
+                            bitmap = MediaStore.Images.Media.getBitmap(mContext.getContentResolver(), imageToAdInPdfUri);
+                        }
+                        bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false);
+
+                        int pageWidth = 595; // A4 width at 300 DPI
+                        int pageHeight = 842; // A4 height at 300 DPI
+
+// Step 2: Calculate the scaling factor to fit the bitmap within the page
+                        float scaleFactorWidth = (float) pageWidth / bitmap.getWidth();
+                        float scaleFactorHeight = (float) pageHeight / bitmap.getHeight();
+                        float scaleFactor = Math.min(scaleFactorWidth, scaleFactorHeight);
+
+                        int scaledWidth = Math.round(bitmap.getWidth() * scaleFactor);
+                        int scaledHeight = Math.round(bitmap.getHeight() * scaleFactor);
+                        Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true);
+
+                        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, i + 1).create();
+
+                        PdfDocument.Page page = pdfDocument.startPage(pageInfo);
+
+                        Paint paint = new Paint();
+                        paint.setColor(Color.WHITE);
+                        Canvas canvas = page.getCanvas();
+                        canvas.drawPaint(paint);
+
+                        int xPos = (pageWidth - scaledWidth) / 2;
+                        int yPos = (pageHeight - scaledHeight) / 2;
+                        canvas.drawBitmap(scaledBitmap, xPos, yPos, null);
+
+                        pdfDocument.finishPage(page);
+                        bitmap.recycle();
+                    }
+                    catch (Exception e){
+                        Log.e(TAG, "run: ",e);
+                    }
+                }
+                pdfDocument.writeTo(fileOutputStream);
+                pdfDocument.close();
+                fileOutputStream.close();
+            }
+            catch (Exception e){
+                Toast.makeText(mContext, ""+e.getMessage(), Toast.LENGTH_SHORT).show();
+                progressDialog.dismiss();
+                Log.e(TAG, "run: ",e);
+            }
+
+            handler.post(() -> {
+                Log.d(TAG, "run: Converted....");
+                progressDialog.dismiss();
+                Toast.makeText(mContext, "Converted....", Toast.LENGTH_SHORT).show();
+            });
         });
     }
 
-    private void deleteImages(boolean deleteAll){
+    private void deleteImages(boolean deleteAll) {
         ArrayList<ModelImage> imagesToDeleteList = new ArrayList<>();
-        if (deleteAll){
+
+        if (deleteAll) {
             imagesToDeleteList.addAll(allImageArrayList);
-        }
-        else{
-            for (ModelImage image: allImageArrayList){
-                if (image.isChecked()){
+        } else {
+            for (ModelImage image : allImageArrayList){
+                if (image.isChecked()) {
                     imagesToDeleteList.add(image);
                 }
             }
         }
 
-        for (ModelImage image: allImageArrayList){
+        for (ModelImage image : imagesToDeleteList) {
             try {
                 String pathOfImageToDelete = image.getImageUri().getPath();
-                File file = new File(pathOfImageToDelete);
-                if (file.exists() &&  file.delete()){
-                    Log.d(TAG, "deleteImages: Image deleted: " + pathOfImageToDelete);
+                if (pathOfImageToDelete != null) {
+                    File file = new File(pathOfImageToDelete);
+                    if (file.exists() && file.delete()) {
+                        Log.d(TAG, "deleteImages: Image deleted: " + pathOfImageToDelete);
+                    } else {
+                        Log.d(TAG, "deleteImages: Failed to delete image: " + pathOfImageToDelete);
+                    }
                 }
-                else {
-                    Log.d(TAG, "deleteImages: Failed to delete image: " + pathOfImageToDelete);
-                }
-            }catch (Exception e){
-                Log.e(TAG, "deleteImages: ",e);
+            } catch (Exception e) {
+                Log.e(TAG, "deleteImages: ", e);
             }
+            image.setChecked(false);
         }
         allImageArrayList.removeAll(imagesToDeleteList);
+        adapterImage.notifyDataSetChanged();
 
         Toast.makeText(mContext, "Deleted", Toast.LENGTH_SHORT).show();
-        adapterImage.notifyDataSetChanged();
-        loadImages();
     }
+
 
     private void loadImages(){
         Log.d(TAG, "loadImages: ");
@@ -361,33 +373,31 @@ public class ImageListFragment extends Fragment {
     private void showInputImageDialog(){
         Log.d(TAG, "showInputImageDialog: ");
         PopupMenu popupMenu = new PopupMenu(mContext, addImageFab);
-        popupMenu.getMenu().add(Menu.NONE,1,1,"Camera");
+//        popupMenu.getMenu().add(Menu.NONE,1,1,"Camera");
         popupMenu.getMenu().add(Menu.NONE,2,2,"Gallery");
         popupMenu.show();
 
-        popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-            @Override
-            public boolean onMenuItemClick(MenuItem menuItem) {
-                int itemId = menuItem.getItemId();
-                if (itemId == 1){
-                    Log.d(TAG, "onMenuItemClick: Camera is clicked, check if camera permissions are granted or not.");
-                    if (checkCameraPermission()){
-                        pickImageCamera();
-                    }
-                    else {
-                        requestCameraPermissions.launch(new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE});
-                    }
-                } else if (itemId == 2){
-                    Log.d(TAG, "onMenuItemClick: Camera is clicked, check if camera permissions are granted or not.");
-                    if (checkStoragePermission()){
-                        pickImageGallery();
-                    }
-                    else {
-                        requestStoragePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-                    }
+        popupMenu.setOnMenuItemClickListener(menuItem -> {
+            int itemId = menuItem.getItemId();
+//            if (itemId == 1){
+//                Log.d(TAG, "onMenuItemClick: Camera is clicked, check if camera permissions are granted or not.");
+//                if (checkCameraPermission()){
+//                    pickImageCamera();
+//                }
+//                else {
+//                    requestCameraPermissions.launch(new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE});
+//                }
+//            }
+            if (itemId == 2){
+                Log.d(TAG, "onMenuItemClick: Camera is clicked, check if camera permissions are granted or not.");
+                if (checkStoragePermission()){
+                    pickImageGallery();
                 }
-                return true;
+                else {
+                    requestStoragePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+                }
             }
+            return true;
         });
     }
 
@@ -460,32 +470,33 @@ public class ImageListFragment extends Fragment {
         }
     }
 
-    private void pickImageCamera(){
-        Log.d(TAG, "pickImageCamera: ");
-        ContentValues contentValues = new ContentValues();
-        contentValues.put(MediaStore.Images.Media.TITLE, "Temp Image Title");
-        contentValues.put(MediaStore.Images.Media.DESCRIPTION, "Temp Image Description");
-        imageUri = mContext.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues);
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
-        cameraActivityResultLauncher.launch(intent);
-    }
+//    private void pickImageCamera(){
+//        Log.d(TAG, "pickImageCamera: ");
+//        ContentValues contentValues = new ContentValues();
+//        contentValues.put(MediaStore.Images.Media.TITLE, "Temp Image Title");
+//        contentValues.put(MediaStore.Images.Media.DESCRIPTION, "Temp Image Description");
+//        imageUri = mContext.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues);
+//        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+//        intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+//        cameraActivityResultLauncher.launch(intent);
+//    }
 
-    private ActivityResultLauncher<Intent> cameraActivityResultLauncher = registerForActivityResult(
-            new ActivityResultContracts.StartActivityForResult(),
-            new ActivityResultCallback<ActivityResult>() {
-                @Override
-                public void onActivityResult(ActivityResult result) {
-                    if (result.getResultCode() == Activity.RESULT_OK){
-                        Log.d(TAG, "onActivityResult: Picked Image camera:"+imageUri);
-                        saveImageToAppLevelDirectory(imageUri);
-                    }
-                    else{
-                        Toast.makeText(mContext, "Cancelled....", Toast.LENGTH_SHORT).show();
-                    }
-                }
-            }
-    );
+//    private ActivityResultLauncher<Intent> cameraActivityResultLauncher = registerForActivityResult(
+//            new ActivityResultContracts.StartActivityForResult(),
+//            new ActivityResultCallback<ActivityResult>() {
+//                @Override
+//                public void onActivityResult(ActivityResult result) {
+//                    if (result.getResultCode() == Activity.RESULT_OK){
+//                        Log.d(TAG,"onActivityResult: Picked Image camera:"+imageUri);
+//                        imageUris.add(imageUri);
+//                        saveImageToAppLevelDirectory(imageUri);
+//                    }
+//                    else{
+//                        Toast.makeText(mContext, "Cancelled....", Toast.LENGTH_SHORT).show();
+//                    }
+//                }
+//            }
+//    );
 
     private boolean checkStoragePermission(){
         Log.d(TAG, "checkStoragePermission: ");
@@ -510,16 +521,16 @@ public class ImageListFragment extends Fragment {
             }
     );
 
-    private void requestPermissions() {
-        if (!checkCameraPermission()) {
-            requestCameraPermissions.launch(new String[] {
-                    Manifest.permission.CAMERA,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-            });
-        } else {
-            pickImageCamera();
-        }
-    }
+//    private void requestPermissions() {
+//        if (!checkCameraPermission()) {
+//            requestCameraPermissions.launch(new String[] {
+//                    Manifest.permission.CAMERA,
+//                    Manifest.permission.READ_EXTERNAL_STORAGE
+//            });
+//        } else {
+//            pickImageCamera();
+//        }
+//    }
 
     private boolean checkCameraPermission(){
         Log.d(TAG, "checkCameraPermission: ");
@@ -534,7 +545,7 @@ public class ImageListFragment extends Fragment {
             new ActivityResultCallback<Map<String, Boolean>>() {
 
                 @Override
-                public void onActivityResult(Map<String, Boolean> result) {
+                public void onActivityResult(Map<String, Boolean> result){
                     Log.d(TAG, "onActivityResult: "+result.toString());
 
                     boolean areAllGranted = true;
@@ -544,7 +555,6 @@ public class ImageListFragment extends Fragment {
                     }
                     if (areAllGranted){
                         Log.d(TAG, "onActivityResult: All Granted e.g. Camera and Storage");
-                        pickImageCamera();
                     }
                     else {
                         Log.d(TAG, "onActivityResult: Camera or Storage or Both Denied");

@@ -19,7 +19,8 @@
             android:textColor="@color/white"
             android:textSize="25sp"
             android:layout_centerVertical="true"
-            android:layout_marginLeft="10dp"/>
+            android:layout_marginLeft="10dp"
+            android:layout_alignParentBottom="true"/>
 
     </RelativeLayout>
 

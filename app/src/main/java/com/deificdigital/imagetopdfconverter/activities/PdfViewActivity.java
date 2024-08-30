@@ -40,11 +40,11 @@ public class PdfViewActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_pdf_view);
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
+//        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+//            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+//            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+//            return insets;
+//        });
 
 //        getSupportActionBar().setTitle("PDF Viewer");
 //        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
@@ -94,7 +94,7 @@ public class PdfViewActivity extends AppCompatActivity {
                 nPdfRenderer = new PdfRenderer(parcelFileDescriptor);
                 int pageCount = nPdfRenderer.getPageCount();
 
-                if (pageCount>0){
+                if (pageCount == 0){
                     Log.d(TAG, "run: No pages in pdf");
                 }
                 else {
@@ -139,8 +139,9 @@ public class PdfViewActivity extends AppCompatActivity {
     }
 
     @Override
-    public boolean onSupportNavigateUp() {
+    public boolean onSupportNavigateUp(){
         getSupportActionBar();
         return super.onSupportNavigateUp();
     }
 }
+

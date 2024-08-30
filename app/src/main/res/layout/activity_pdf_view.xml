@@ -14,4 +14,5 @@
         tools:listitem="@layout/row_pdf_view"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"/>
 
+
 </RelativeLayout>

@@ -42,6 +42,10 @@ public class AdapterImage extends RecyclerView.Adapter<AdapterImage.HolderImage>
         ModelImage modelImage = imageArrayList.get(position);
         Uri imageUri = modelImage.getImageUri();
         Glide.with(context).load(imageUri).placeholder(R.drawable.ic_image_black).into(holder.imageIv);
+
+        holder.checkBox.setOnCheckedChangeListener(null);  // Prevent triggering the listener when updating the state
+        holder.checkBox.setChecked(modelImage.isChecked());
+
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
