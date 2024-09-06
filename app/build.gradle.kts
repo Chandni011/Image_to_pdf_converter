@@ -44,4 +44,5 @@ dependencies {
     implementation("com.github.bumptech.glide:glide:4.14.1")
     annotationProcessor("com.github.bumptech.glide:compiler:4.14.1")
     implementation ("com.squareup.picasso:picasso:2.5.2")
+    implementation ("com.squareup.okhttp3:okhttp:4.9.3")
 }
